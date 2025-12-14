@@ -42,7 +42,7 @@ jobs:
 
       - name: Build APK
         run: |
-          ./gradlew assembleRelease --stacktrace -x lint
+          ./gradlew assembleRelease
 
       - name: Rename APK
         run: |
