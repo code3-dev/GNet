@@ -265,7 +265,8 @@ fun HomeScreen(
                 ) {
                     Text(
                         text = if (uiState.isProxyActive) "Stop Proxy" else "Start Proxy",
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
                 
@@ -357,7 +358,10 @@ fun HomeScreen(
                         onClick = { showIpSelector = false },
                         modifier = Modifier
                     ) {
-                        Text("Close")
+                        Text(
+                            text = "Close",
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 }
                 
