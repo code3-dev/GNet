@@ -27,6 +27,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Make gradlew executable
+        run: |
+          chmod +x gradlew
+
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/*.sh
+
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEY_STORE }}" | base64 --decode > app/keystore.jks
