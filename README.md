@@ -1,10 +1,18 @@
 # GNet Proxy
 
-GNet Proxy is a powerful Android application that provides both HTTP and SOCKS5 proxy capabilities with a modern Material 3 design. Built with Kotlin and Jetpack Compose, it offers users a seamless way to route their network traffic through customizable proxy servers.
-
-[![GitHub release (latest)](https://img.shields.io/github/v/release/code3-dev/GNet)](https://github.com/code3-dev/GNet/releases)
-[![Downloads](https://img.shields.io/github/downloads/code3-dev/GNet/total)](https://github.com/code3-dev/GNet/releases)
-[![GitHub](https://img.shields.io/github/license/code3-dev/GNet)](LICENSE)
+<div align="center">
+  <img src="app/src/main/res/drawable/logo.png" alt="GNet Proxy Logo" width="40%">
+  
+  <h1>GNet Proxy</h1>
+  
+  <p><strong>A powerful Android application that provides both HTTP and SOCKS5 proxy capabilities with a modern Material 3 design</strong></p>
+  
+  <p>Built with Kotlin and Jetpack Compose, it offers users a seamless way to route their network traffic through customizable proxy servers.</p>
+  
+  [![GitHub release (latest)](https://img.shields.io/github/v/release/code3-dev/GNet)](https://github.com/code3-dev/GNet/releases)
+  [![Downloads](https://img.shields.io/github/downloads/code3-dev/GNet/total)](https://github.com/code3-dev/GNet/releases)
+  [![GitHub](https://img.shields.io/github/license/code3-dev/GNet)](LICENSE)
+</div>
 
 ## 🌟 Features
 
