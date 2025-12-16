@@ -21,11 +21,11 @@ class ThemeManager(private val context: Context) {
     }
     
     fun loadThemeSettings(): ThemeSettings {
-        val themeModeStr = prefs.getString("theme_mode", ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name
+        val themeModeStr = prefs.getString("theme_mode", ThemeMode.LIGHT.name) ?: ThemeMode.LIGHT.name
         val themeMode = try {
             ThemeMode.valueOf(themeModeStr)
         } catch (e: IllegalArgumentException) {
-            ThemeMode.SYSTEM
+            ThemeMode.LIGHT
         }
         
         val primaryColor = prefs.getInt("primary_color", defaultPrimaryColor.toArgb())
