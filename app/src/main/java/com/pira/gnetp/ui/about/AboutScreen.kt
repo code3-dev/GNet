@@ -1,5 +1,7 @@
 package com.pira.gnetp.ui.about
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,10 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +37,7 @@ import com.pira.gnetp.R
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     
     Scaffold(
@@ -47,7 +51,7 @@ fun AboutScreen(
             ) {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Default.ArrowBack,
                         contentDescription = stringResource(R.string.back)
                     )
                 }
@@ -95,7 +99,7 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Version 1.0.3",
+                text = "Version 1.0.4",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -126,6 +130,32 @@ fun AboutScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            OutlinedButton(
+                onClick = {
+                    val uri = Uri.parse("https://github.com/code3-dev/GNet")
+                    val intent = Intent(Intent.ACTION_VIEW, uri)
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("GitHub Repository")
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            OutlinedButton(
+                onClick = {
+                    val uri = Uri.parse("https://github.com/code3-dev/GNet/releases/latest")
+                    val intent = Intent(Intent.ACTION_VIEW, uri)
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Latest Release")
+            }
         }
     }
 }

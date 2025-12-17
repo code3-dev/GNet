@@ -56,7 +56,7 @@ fun LogsScreen(
     // Monitor proxy status in real-time
     LaunchedEffect(Unit) {
         while (true) {
-            val currentStatus = homeViewModel.uiState.value.isProxyActive
+            val currentStatus = homeViewModel.uiState.value.isHttpProxyActive || homeViewModel.uiState.value.isSocks5ProxyActive
             if (currentStatus != isProxyActive) {
                 isProxyActive = currentStatus
             }

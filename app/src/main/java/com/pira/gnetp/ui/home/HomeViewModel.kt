@@ -46,46 +46,113 @@ class HomeViewModel @Inject constructor(
         getAvailableIPs()
     }
 
-    fun startProxy() {
-        Logger.d(TAG, "startProxy called")
+    fun startHttpProxy() {
+        Logger.d(TAG, "startHttpProxy called")
         viewModelScope.launch {
             try {
-                Logger.d(TAG, "Starting proxy service")
-                startProxyService()
+                Logger.d(TAG, "Starting HTTP proxy service")
+                startProxyService(true, false)
             } catch (e: Exception) {
-                Logger.e(TAG, "Error starting proxy", e)
+                Logger.e(TAG, "Error starting HTTP proxy", e)
                 _uiState.value = _uiState.value.copy(
-                    isProxyActive = false,
-                    errorMessage = "Failed to start proxy service: ${e.message}"
+                    isHttpProxyActive = false,
+                    errorMessage = "Failed to start HTTP proxy service: ${e.message}"
+                )
+            }
+        }
+    }
+    
+    fun startSocks5Proxy() {
+        Logger.d(TAG, "startSocks5Proxy called")
+        viewModelScope.launch {
+            try {
+                Logger.d(TAG, "Starting SOCKS5 proxy service")
+                startProxyService(false, true)
+            } catch (e: Exception) {
+                Logger.e(TAG, "Error starting SOCKS5 proxy", e)
+                _uiState.value = _uiState.value.copy(
+                    isSocks5ProxyActive = false,
+                    errorMessage = "Failed to start SOCKS5 proxy service: ${e.message}"
+                )
+            }
+        }
+    }
+    
+    fun startBothProxies() {
+        Logger.d(TAG, "startBothProxies called")
+        viewModelScope.launch {
+            try {
+                Logger.d(TAG, "Starting both proxy services")
+                startProxyService(true, true)
+            } catch (e: Exception) {
+                Logger.e(TAG, "Error starting both proxies", e)
+                _uiState.value = _uiState.value.copy(
+                    isHttpProxyActive = false,
+                    isSocks5ProxyActive = false,
+                    errorMessage = "Failed to start proxy services: ${e.message}"
                 )
             }
         }
     }
 
-    fun stopProxy() {
-        Logger.d(TAG, "stopProxy called")
+    fun stopHttpProxy() {
+        Logger.d(TAG, "stopHttpProxy called")
         viewModelScope.launch {
-            proxyConfig.value = proxyConfig.value.copy(isActive = false)
+            val updatedConfig = proxyConfig.value.copy(isHttpActive = false)
+            proxyConfig.value = updatedConfig
+            
+            // Save the proxy settings
+            val preferenceManager = PreferenceManager.getInstance(context)
+            preferenceManager.saveProxySettings(updatedConfig)
+            
             val intent = Intent(context, ProxyServerService::class.java)
             context.stopService(intent)
-            _uiState.value = _uiState.value.copy(isProxyActive = false)
-            Logger.i(TAG, "Proxy service stopped")
+            _uiState.value = _uiState.value.copy(isHttpProxyActive = false)
+            Logger.i(TAG, "HTTP proxy service stopped")
+        }
+    }
+    
+    fun stopSocks5Proxy() {
+        Logger.d(TAG, "stopSocks5Proxy called")
+        viewModelScope.launch {
+            val updatedConfig = proxyConfig.value.copy(isSocks5Active = false)
+            proxyConfig.value = updatedConfig
+            
+            // Save the proxy settings
+            val preferenceManager = PreferenceManager.getInstance(context)
+            preferenceManager.saveProxySettings(updatedConfig)
+            
+            val intent = Intent(context, ProxyServerService::class.java)
+            context.stopService(intent)
+            _uiState.value = _uiState.value.copy(isSocks5ProxyActive = false)
+            Logger.i(TAG, "SOCKS5 proxy service stopped")
+        }
+    }
+    
+    fun stopBothProxies() {
+        Logger.d(TAG, "stopBothProxies called")
+        viewModelScope.launch {
+            proxyConfig.value = proxyConfig.value.copy(isHttpActive = false, isSocks5Active = false)
+            val intent = Intent(context, ProxyServerService::class.java)
+            context.stopService(intent)
+            _uiState.value = _uiState.value.copy(isHttpProxyActive = false, isSocks5ProxyActive = false)
+            Logger.i(TAG, "Both proxy services stopped")
         }
     }
 
-    fun updateProxyType(type: ProxyType) {
-        Logger.d(TAG, "updateProxyType: $type")
+    fun updateHttpPort(port: Int) {
+        Logger.d(TAG, "updateHttpPort: $port")
         viewModelScope.launch {
-            proxyConfig.value = proxyConfig.value.copy(proxyType = type)
-            _uiState.value = _uiState.value.copy(selectedProxyType = type)
+            proxyConfig.value = proxyConfig.value.copy(httpPort = port)
+            _uiState.value = _uiState.value.copy(httpPort = port)
         }
     }
-
-    fun updatePort(port: Int) {
-        Logger.d(TAG, "updatePort: $port")
+    
+    fun updateSocks5Port(port: Int) {
+        Logger.d(TAG, "updateSocks5Port: $port")
         viewModelScope.launch {
-            proxyConfig.value = proxyConfig.value.copy(port = port)
-            _uiState.value = _uiState.value.copy(port = port)
+            proxyConfig.value = proxyConfig.value.copy(socks5Port = port)
+            _uiState.value = _uiState.value.copy(socks5Port = port)
         }
     }
     
@@ -105,23 +172,35 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun startProxyService() {
-        Logger.d(TAG, "startProxyService called")
+    private fun startProxyService(startHttp: Boolean, startSocks5: Boolean) {
+        Logger.d(TAG, "startProxyService called with HTTP: $startHttp, SOCKS5: $startSocks5")
         viewModelScope.launch {
             try {
-                proxyConfig.value = proxyConfig.value.copy(isActive = true)
+                // Check if protocols are enabled in settings
+                val httpEnabled = proxyConfig.value.isHttpEnabled && startHttp
+                val socks5Enabled = proxyConfig.value.isSocks5Enabled && startSocks5
+                
+                val updatedConfig = proxyConfig.value.copy(isHttpActive = httpEnabled, isSocks5Active = socks5Enabled)
+                proxyConfig.value = updatedConfig
+                
+                // Save the proxy settings
+                val preferenceManager = PreferenceManager.getInstance(context)
+                preferenceManager.saveProxySettings(updatedConfig)
+                
                 val intent = Intent(context, ProxyServerService::class.java)
                 context.startService(intent)
                 _uiState.value = _uiState.value.copy(
-                    isProxyActive = true,
+                    isHttpProxyActive = httpEnabled,
+                    isSocks5ProxyActive = socks5Enabled,
                     errorMessage = null
                 )
-                Logger.i(TAG, "Proxy service started")
+                Logger.i(TAG, "Proxy services started - HTTP: $httpEnabled, SOCKS5: $socks5Enabled")
             } catch (e: Exception) {
-                Logger.e(TAG, "Error starting proxy service", e)
+                Logger.e(TAG, "Error starting proxy services", e)
                 _uiState.value = _uiState.value.copy(
-                    isProxyActive = false,
-                    errorMessage = "Failed to start proxy service: ${e.message}"
+                    isHttpProxyActive = false,
+                    isSocks5ProxyActive = false,
+                    errorMessage = "Failed to start proxy services: ${e.message}"
                 )
             }
         }
@@ -137,20 +216,25 @@ class HomeViewModel @Inject constructor(
             val savedConfig = preferenceManager.loadProxySettings()
             val savedIpAddress = preferenceManager.getSelectedIpAddress()
             
-            // Update the proxy config
-            proxyConfig.value = proxyConfig.value.copy(
-                proxyType = savedConfig.proxyType,
-                port = savedConfig.port
-            )
+            // Update the proxy config with all settings including active status
+            proxyConfig.value = savedConfig
             
             // Update UI state
             _uiState.value = _uiState.value.copy(
-                selectedProxyType = savedConfig.proxyType,
-                port = savedConfig.port,
+                httpPort = savedConfig.httpPort,
+                socks5Port = savedConfig.socks5Port,
+                isHttpProxyActive = savedConfig.isHttpActive,
+                isSocks5ProxyActive = savedConfig.isSocks5Active,
                 selectedIpAddress = savedIpAddress
             )
             
-            Logger.d(TAG, "Loaded saved proxy settings: ${savedConfig.proxyType}, port: ${savedConfig.port}, IP: $savedIpAddress")
+            Logger.d(TAG, "Loaded saved proxy settings: HTTP port: ${savedConfig.httpPort}, SOCKS5 port: ${savedConfig.socks5Port}, HTTP active: ${savedConfig.isHttpActive}, SOCKS5 active: ${savedConfig.isSocks5Active}, IP: $savedIpAddress")
+            
+            // If any proxy is active, start the service
+            if (savedConfig.isHttpActive || savedConfig.isSocks5Active) {
+                val intent = Intent(context, ProxyServerService::class.java)
+                context.startService(intent)
+            }
         } catch (e: Exception) {
             Logger.e(TAG, "Error loading saved proxy settings", e)
         }
@@ -225,10 +309,11 @@ class HomeViewModel @Inject constructor(
 
 data class HomeUiState(
     val isVpnConnected: Boolean = false,
-    val isProxyActive: Boolean = false,
+    val isHttpProxyActive: Boolean = false,
+    val isSocks5ProxyActive: Boolean = false,
     val needsVpnPermission: Boolean = false,
-    val selectedProxyType: ProxyType = ProxyType.HTTP,
-    val port: Int = 8080,
+    val httpPort: Int = 8080,
+    val socks5Port: Int = 1080,
     val isHotspotEnabled: Boolean = false,
     val errorMessage: String? = null,
     val availableIPs: List<String> = emptyList(),

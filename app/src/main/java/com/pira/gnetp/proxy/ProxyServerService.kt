@@ -34,6 +34,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import javax.inject.Inject
+import com.pira.gnetp.utils.PreferenceManager
 
 @AndroidEntryPoint
 class ProxyServerService : Service() {
@@ -44,8 +45,10 @@ class ProxyServerService : Service() {
     lateinit var logRepository: LogRepository
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var serverSocket: ServerSocket? = null
-    private var isRunning = false
+    private var httpServerSocket: ServerSocket? = null
+    private var socks5ServerSocket: ServerSocket? = null
+    private var isHttpRunning = false
+    private var isSocks5Running = false
     private var clientThreads = mutableListOf<Thread>()
 
     companion object {
@@ -66,53 +69,75 @@ class ProxyServerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Logger.d(TAG, "onStartCommand called")
         val config = proxyConfig.value
-        if (config.isActive) {
-            Logger.i(TAG, "Starting proxy server on port ${config.port}")
-            logMessage("Starting proxy server on port ${config.port}", LogLevel.INFO)
-            startForeground(NOTIFICATION_ID, createNotification())
-            startProxyServer(config)
+        
+        // Save the current proxy status
+        val preferenceManager = PreferenceManager.getInstance(this)
+        preferenceManager.saveProxySettings(config)
+        
+        // Start foreground service regardless of which proxies are active
+        startForeground(NOTIFICATION_ID, createNotification())
+        
+        if (config.isHttpActive || config.isSocks5Active) {
+            if (config.isHttpActive) {
+                Logger.i(TAG, "Starting HTTP proxy server on port ${config.httpPort}")
+                logMessage("Starting HTTP proxy server on port ${config.httpPort}", LogLevel.INFO)
+            }
+            if (config.isSocks5Active) {
+                Logger.i(TAG, "Starting SOCKS5 proxy server on port ${config.socks5Port}")
+                logMessage("Starting SOCKS5 proxy server on port ${config.socks5Port}", LogLevel.INFO)
+            }
+            startProxyServers(config)
         } else {
-            Logger.i(TAG, "Stopping proxy server")
-            logMessage("Stopping proxy server", LogLevel.INFO)
-            stopProxyServer()
+            Logger.i(TAG, "Stopping proxy servers")
+            logMessage("Stopping proxy servers", LogLevel.INFO)
+            stopProxyServers()
             stopForeground(STOP_FOREGROUND_REMOVE)
         }
-        return START_NOT_STICKY
+        return START_REDELIVER_INTENT
     }
 
     override fun onDestroy() {
         super.onDestroy()
         Logger.d(TAG, "ProxyServerService destroyed")
         logMessage("Service destroyed", LogLevel.INFO)
-        stopProxyServer()
+        stopProxyServers()
         serviceScope.cancel()
     }
 
-    private fun startProxyServer(config: ProxyConfig) {
-        if (isRunning) {
-            Logger.w(TAG, "Proxy server is already running")
-            logMessage("Proxy server is already running", LogLevel.WARNING)
-            return
+    private fun startProxyServers(config: ProxyConfig) {
+        if (config.isHttpActive && isHttpRunning) {
+            Logger.w(TAG, "HTTP proxy server is already running")
+            logMessage("HTTP proxy server is already running", LogLevel.WARNING)
+        }
+        
+        if (config.isSocks5Active && isSocks5Running) {
+            Logger.w(TAG, "SOCKS5 proxy server is already running")
+            logMessage("SOCKS5 proxy server is already running", LogLevel.WARNING)
         }
 
-        isRunning = true
         serviceScope.launch {
             try {
-                Logger.d(TAG, "Starting proxy server")
-                logMessage("Starting proxy server", LogLevel.INFO)
-                startServer(config)
+                Logger.d(TAG, "Starting proxy servers")
+                logMessage("Starting proxy servers", LogLevel.INFO)
+                startServers(config)
             } catch (e: Exception) {
-                Logger.e(TAG, "Error starting proxy server", e)
-                logMessage("Error starting proxy server: ${e.message}", LogLevel.ERROR)
-                isRunning = false
+                Logger.e(TAG, "Error starting proxy servers", e)
+                logMessage("Error starting proxy servers: ${e.message}", LogLevel.ERROR)
             }
         }
     }
 
-    private fun stopProxyServer() {
-        Logger.d(TAG, "Stopping proxy server")
-        logMessage("Stopping proxy server", LogLevel.INFO)
-        isRunning = false
+    private fun stopProxyServers() {
+        Logger.d(TAG, "Stopping proxy servers")
+        logMessage("Stopping proxy servers", LogLevel.INFO)
+        isHttpRunning = false
+        isSocks5Running = false
+        
+        // Save the proxy status as inactive
+        val updatedConfig = proxyConfig.value.copy(isHttpActive = false, isSocks5Active = false)
+        proxyConfig.value = updatedConfig
+        val preferenceManager = PreferenceManager.getInstance(this)
+        preferenceManager.saveProxySettings(updatedConfig)
         
         // Interrupt all client threads
         clientThreads.forEach { thread ->
@@ -126,71 +151,159 @@ class ProxyServerService : Service() {
         clientThreads.clear()
 
         try {
-            serverSocket?.close()
+            httpServerSocket?.close()
         } catch (e: Exception) {
-            Logger.e(TAG, "Error closing server socket", e)
-            logMessage("Error closing server socket: ${e.message}", LogLevel.ERROR)
+            Logger.e(TAG, "Error closing HTTP server socket", e)
+            logMessage("Error closing HTTP server socket: ${e.message}", LogLevel.ERROR)
         }
-        serverSocket = null
+        httpServerSocket = null
+        
+        try {
+            socks5ServerSocket?.close()
+        } catch (e: Exception) {
+            Logger.e(TAG, "Error closing SOCKS5 server socket", e)
+            logMessage("Error closing SOCKS5 server socket: ${e.message}", LogLevel.ERROR)
+        }
+        socks5ServerSocket = null
     }
 
-    private fun startServer(config: ProxyConfig) {
+    private fun startServers(config: ProxyConfig) {
+        // Start HTTP server if enabled
+        if (config.isHttpEnabled) {
+            startHttpServer(config.httpPort)
+        }
+        
+        // Start SOCKS5 server if enabled
+        if (config.isSocks5Enabled) {
+            startSocks5Server(config.socks5Port)
+        }
+    }
+    
+    private fun startHttpServer(port: Int) {
         try {
-            serverSocket = ServerSocket()
-            serverSocket?.reuseAddress = true
+            httpServerSocket = ServerSocket()
+            httpServerSocket?.reuseAddress = true
             // Bind to all interfaces by default, or to specific IP if needed
-            serverSocket?.bind(InetSocketAddress("0.0.0.0", config.port))
+            httpServerSocket?.bind(InetSocketAddress("0.0.0.0", port))
+            isHttpRunning = true
             
-            Logger.i(TAG, "Proxy server started on port ${config.port}")
-            logMessage("Proxy server started on port ${config.port}", LogLevel.INFO)
+            Logger.i(TAG, "HTTP proxy server started on port $port")
+            logMessage("HTTP proxy server started on port $port", LogLevel.INFO)
             
-            while (isRunning) {
-                try {
-                    Logger.d(TAG, "Waiting for client connection")
-                    logMessage("Waiting for client connection", LogLevel.INFO)
-                    val clientSocket = serverSocket?.accept() ?: continue
-                    val clientIp = clientSocket.inetAddress.hostAddress
-                    Logger.d(TAG, "Client connected from $clientIp")
-                    logMessage("Client connected from $clientIp", LogLevel.INFO)
-                    
-                    // Handle each client in a separate thread
-                    val clientThread = Thread {
-                        try {
-                            handleClientConnection(clientSocket, config.proxyType)
-                        } catch (e: Exception) {
-                            Logger.e(TAG, "Error handling client connection", e)
-                            logMessage("Error handling client connection from $clientIp: ${e.message}", LogLevel.ERROR)
-                        } finally {
+            // Launch coroutine to handle HTTP connections
+            serviceScope.launch {
+                while (isHttpRunning) {
+                    try {
+                        Logger.d(TAG, "Waiting for HTTP client connection")
+                        logMessage("Waiting for HTTP client connection", LogLevel.INFO)
+                        val clientSocket = httpServerSocket?.accept() ?: continue
+                        val clientIp = clientSocket.inetAddress.hostAddress
+                        Logger.d(TAG, "HTTP client connected from $clientIp")
+                        logMessage("HTTP client connected from $clientIp", LogLevel.INFO)
+                        
+                        // Handle each client in a separate thread
+                        val clientThread = Thread {
                             try {
-                                clientSocket.close()
-                                Logger.d(TAG, "Client socket closed")
-                                logMessage("Client socket closed ($clientIp)", LogLevel.INFO)
+                                handleClientConnection(clientSocket, ProxyType.HTTP)
                             } catch (e: Exception) {
-                                Logger.e(TAG, "Error closing client socket", e)
-                                logMessage("Error closing client socket: ${e.message}", LogLevel.ERROR)
+                                Logger.e(TAG, "Error handling HTTP client connection", e)
+                                logMessage("Error handling HTTP client connection from $clientIp: ${e.message}", LogLevel.ERROR)
+                            } finally {
+                                try {
+                                    clientSocket.close()
+                                    Logger.d(TAG, "HTTP client socket closed")
+                                    logMessage("HTTP client socket closed ($clientIp)", LogLevel.INFO)
+                                } catch (e: Exception) {
+                                    Logger.e(TAG, "Error closing HTTP client socket", e)
+                                    logMessage("Error closing HTTP client socket: ${e.message}", LogLevel.ERROR)
+                                }
                             }
                         }
-                    }
-                    
-                    clientThreads.add(clientThread)
-                    clientThread.start()
-                } catch (e: SocketException) {
-                    // This happens when the socket is closed
-                    if (isRunning) {
-                        Logger.e(TAG, "Socket exception while accepting client connection", e)
-                        logMessage("Socket exception: ${e.message}", LogLevel.ERROR)
-                    }
-                    break
-                } catch (e: Exception) {
-                    if (isRunning) {
-                        Logger.e(TAG, "Error accepting client connection", e)
-                        logMessage("Error accepting client connection: ${e.message}", LogLevel.ERROR)
+                        
+                        clientThreads.add(clientThread)
+                        clientThread.start()
+                    } catch (e: SocketException) {
+                        // This happens when the socket is closed
+                        if (isHttpRunning) {
+                            Logger.e(TAG, "Socket exception while accepting HTTP client connection", e)
+                            logMessage("Socket exception: ${e.message}", LogLevel.ERROR)
+                        }
+                        break
+                    } catch (e: Exception) {
+                        if (isHttpRunning) {
+                            Logger.e(TAG, "Error accepting HTTP client connection", e)
+                            logMessage("Error accepting HTTP client connection: ${e.message}", LogLevel.ERROR)
+                        }
                     }
                 }
             }
         } catch (e: Exception) {
-            Logger.e(TAG, "Error starting server", e)
-            logMessage("Error starting server: ${e.message}", LogLevel.ERROR)
+            Logger.e(TAG, "Error starting HTTP server", e)
+            logMessage("Error starting HTTP server: ${e.message}", LogLevel.ERROR)
+        }
+    }
+    
+    private fun startSocks5Server(port: Int) {
+        try {
+            socks5ServerSocket = ServerSocket()
+            socks5ServerSocket?.reuseAddress = true
+            // Bind to all interfaces by default, or to specific IP if needed
+            socks5ServerSocket?.bind(InetSocketAddress("0.0.0.0", port))
+            isSocks5Running = true
+            
+            Logger.i(TAG, "SOCKS5 proxy server started on port $port")
+            logMessage("SOCKS5 proxy server started on port $port", LogLevel.INFO)
+            
+            // Launch coroutine to handle SOCKS5 connections
+            serviceScope.launch {
+                while (isSocks5Running) {
+                    try {
+                        Logger.d(TAG, "Waiting for SOCKS5 client connection")
+                        logMessage("Waiting for SOCKS5 client connection", LogLevel.INFO)
+                        val clientSocket = socks5ServerSocket?.accept() ?: continue
+                        val clientIp = clientSocket.inetAddress.hostAddress
+                        Logger.d(TAG, "SOCKS5 client connected from $clientIp")
+                        logMessage("SOCKS5 client connected from $clientIp", LogLevel.INFO)
+                        
+                        // Handle each client in a separate thread
+                        val clientThread = Thread {
+                            try {
+                                handleClientConnection(clientSocket, ProxyType.SOCKS5)
+                            } catch (e: Exception) {
+                                Logger.e(TAG, "Error handling SOCKS5 client connection", e)
+                                logMessage("Error handling SOCKS5 client connection from $clientIp: ${e.message}", LogLevel.ERROR)
+                            } finally {
+                                try {
+                                    clientSocket.close()
+                                    Logger.d(TAG, "SOCKS5 client socket closed")
+                                    logMessage("SOCKS5 client socket closed ($clientIp)", LogLevel.INFO)
+                                } catch (e: Exception) {
+                                    Logger.e(TAG, "Error closing SOCKS5 client socket", e)
+                                    logMessage("Error closing SOCKS5 client socket: ${e.message}", LogLevel.ERROR)
+                                }
+                            }
+                        }
+                        
+                        clientThreads.add(clientThread)
+                        clientThread.start()
+                    } catch (e: SocketException) {
+                        // This happens when the socket is closed
+                        if (isSocks5Running) {
+                            Logger.e(TAG, "Socket exception while accepting SOCKS5 client connection", e)
+                            logMessage("Socket exception: ${e.message}", LogLevel.ERROR)
+                        }
+                        break
+                    } catch (e: Exception) {
+                        if (isSocks5Running) {
+                            Logger.e(TAG, "Error accepting SOCKS5 client connection", e)
+                            logMessage("Error accepting SOCKS5 client connection: ${e.message}", LogLevel.ERROR)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, "Error starting SOCKS5 server", e)
+            logMessage("Error starting SOCKS5 server: ${e.message}", LogLevel.ERROR)
         }
     }
 

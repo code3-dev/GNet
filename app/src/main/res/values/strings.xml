@@ -12,6 +12,8 @@
     <string name="stop_proxy">Stop Proxy</string>
     <string name="vpn_status">VPN Status</string>
     <string name="proxy_status">Proxy Status</string>
+    <string name="http_proxy_status">HTTP Proxy:</string>
+    <string name="socks5_proxy_status">SOCKS5 Proxy:</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="active">Active</string>
@@ -67,13 +69,16 @@
     <string name="primary_color">Primary Color</string>
     <string name="default_label">Default</string>
     <string name="proxy_settings">Proxy Settings</string>
+    <string name="enable_protocols">Enable Protocols</string>
     <string name="http_proxy">HTTP Proxy</string>
     <string name="socks5_proxy">SOCKS5 Proxy</string>
     <string name="port_configuration">Port Configuration</string>
     <string name="port_number">Port Number</string>
+    <string name="port_range_note">Note: Port must be between 1024-65535</string>
     <string name="settings_saved">Settings saved successfully</string>
     <string name="invalid_port">Please enter a valid port number (1024-65535)</string>
     <string name="save_settings">Save Settings</string>
+    <string name="open_settings">Open Settings</string>
     
     <!-- Restart Dialog Strings -->
     <string name="restart_required">Restart Required</string>

@@ -33,6 +33,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -41,23 +42,31 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pira.gnetp.R
 import com.pira.gnetp.data.ProxyType
 
+// Define green color for active proxy state
+private val GreenColor = Color(0xFF006D32)
+
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
-    onStartProxy: () -> Unit,
-    onStopProxy: () -> Unit,
+    onStartBothProxies: () -> Unit,
+    onStopBothProxies: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToHotspot: () -> Unit,
     onNavigateToLogs: () -> Unit,
@@ -125,7 +134,8 @@ fun HomeScreen(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) 8.dp else 4.dp),
+            border = if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) BorderStroke(2.dp, GreenColor) else null
         ) {
             Column(
                 modifier = Modifier
@@ -163,14 +173,33 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(R.string.proxy_status),
+                        text = stringResource(R.string.http_proxy_status),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     
                     Text(
-                        text = if (uiState.isProxyActive) stringResource(R.string.active) else stringResource(R.string.inactive),
+                        text = if (uiState.isHttpProxyActive) stringResource(R.string.active) else stringResource(R.string.inactive),
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (uiState.isProxyActive) MaterialTheme.colorScheme.primary else Color.Red,
+                        color = if (uiState.isHttpProxyActive) MaterialTheme.colorScheme.primary else Color.Red,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = stringResource(R.string.socks5_proxy_status),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    
+                    Text(
+                        text = if (uiState.isSocks5ProxyActive) stringResource(R.string.active) else stringResource(R.string.inactive),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (uiState.isSocks5ProxyActive) MaterialTheme.colorScheme.primary else Color.Red,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -207,7 +236,8 @@ fun HomeScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) 8.dp else 4.dp),
+                border = if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) BorderStroke(2.dp, GreenColor) else null
             ) {
                 Column(
                     modifier = Modifier
@@ -239,7 +269,8 @@ fun HomeScreen(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) 8.dp else 4.dp),
+            border = if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) BorderStroke(2.dp, GreenColor) else null
         ) {
             Column(
                 modifier = Modifier
@@ -254,12 +285,17 @@ fun HomeScreen(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 
+                // Add haptic feedback for vibration
+                val hapticFeedback = LocalHapticFeedback.current
+                
                 Button(
                     onClick = {
-                        if (uiState.isProxyActive) {
-                            onStopProxy()
+                        if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) {
+                            onStopBothProxies()
                         } else {
-                            onStartProxy()
+                            // Vibrate when starting proxy
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onStartBothProxies()
                         }
                     },
                     modifier = Modifier
@@ -270,7 +306,7 @@ fun HomeScreen(
                     )
                 ) {
                     Text(
-                        text = if (uiState.isProxyActive) stringResource(R.string.stop_proxy) else stringResource(R.string.start_proxy),
+                        text = if (uiState.isHttpProxyActive || uiState.isSocks5ProxyActive) stringResource(R.string.stop_proxy) else stringResource(R.string.start_proxy),
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White
                     )
@@ -284,7 +320,10 @@ fun HomeScreen(
                 ) {
                     OutlinedButton(
                         onClick = onNavigateToSettings,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -292,14 +331,20 @@ fun HomeScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text(stringResource(R.string.settings))
+                        Text(
+                            text = stringResource(R.string.settings),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                    
+                                    
                     Spacer(modifier = Modifier.size(8.dp))
-                    
+                                    
                     OutlinedButton(
                         onClick = onNavigateToHotspot,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Info,
@@ -307,15 +352,20 @@ fun HomeScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text(stringResource(R.string.hotspot))
+                        Text(
+                            text = stringResource(R.string.hotspot),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
-                
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 OutlinedButton(
                     onClick = onNavigateToLogs,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.List,
@@ -323,7 +373,10 @@ fun HomeScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
-                    Text("View Logs")
+                    Text(
+                        text = "View Logs",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }

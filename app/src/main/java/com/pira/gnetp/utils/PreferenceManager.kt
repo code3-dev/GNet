@@ -9,11 +9,16 @@ class PreferenceManager private constructor(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("proxy_prefs", Context.MODE_PRIVATE)
     
     companion object {
-        private const val SELECTED_PROXY_TYPE = "selected_proxy_type"
-        private const val SELECTED_PORT = "selected_port"
+        private const val SELECTED_HTTP_PORT = "selected_http_port"
+        private const val SELECTED_SOCKS5_PORT = "selected_socks5_port"
+        private const val IS_HTTP_ENABLED = "is_http_enabled"
+        private const val IS_SOCKS5_ENABLED = "is_socks5_enabled"
+        private const val IS_HTTP_ACTIVE = "is_http_active"
+        private const val IS_SOCKS5_ACTIVE = "is_socks5_active"
         private const val SELECTED_IP_ADDRESS = "selected_ip_address"
-        private const val DEFAULT_PROXY_TYPE = "HTTP"
-        private const val DEFAULT_PORT = 8080
+        private const val IS_AUTO_UPDATE_ENABLED = "is_auto_update_enabled"
+        private const val DEFAULT_HTTP_PORT = 8080
+        private const val DEFAULT_SOCKS5_PORT = 1080
         private const val DEFAULT_IP = ""
         
         @Volatile
@@ -28,25 +33,28 @@ class PreferenceManager private constructor(context: Context) {
     
     fun saveProxySettings(proxyConfig: ProxyConfig) {
         prefs.edit()
-            .putString(SELECTED_PROXY_TYPE, proxyConfig.proxyType.name)
-            .putInt(SELECTED_PORT, proxyConfig.port)
+            .putInt(SELECTED_HTTP_PORT, proxyConfig.httpPort)
+            .putInt(SELECTED_SOCKS5_PORT, proxyConfig.socks5Port)
+            .putBoolean(IS_HTTP_ENABLED, proxyConfig.isHttpEnabled)
+            .putBoolean(IS_SOCKS5_ENABLED, proxyConfig.isSocks5Enabled)
+            .putBoolean(IS_HTTP_ACTIVE, proxyConfig.isHttpActive)
+            .putBoolean(IS_SOCKS5_ACTIVE, proxyConfig.isSocks5Active)
             .apply()
     }
     
     fun loadProxySettings(): ProxyConfig {
-        val proxyTypeStr = prefs.getString(SELECTED_PROXY_TYPE, DEFAULT_PROXY_TYPE) ?: DEFAULT_PROXY_TYPE
-        val port = prefs.getInt(SELECTED_PORT, DEFAULT_PORT)
-        
-        val proxyType = try {
-            ProxyType.valueOf(proxyTypeStr)
-        } catch (e: IllegalArgumentException) {
-            ProxyType.HTTP
-        }
+        val httpPort = prefs.getInt(SELECTED_HTTP_PORT, DEFAULT_HTTP_PORT)
+        val socks5Port = prefs.getInt(SELECTED_SOCKS5_PORT, DEFAULT_SOCKS5_PORT)
+        val isHttpEnabled = prefs.getBoolean(IS_HTTP_ENABLED, true)
+        val isSocks5Enabled = prefs.getBoolean(IS_SOCKS5_ENABLED, true)
         
         return ProxyConfig(
-            proxyType = proxyType,
-            port = port,
-            isActive = false
+            httpPort = httpPort,
+            socks5Port = socks5Port,
+            isHttpEnabled = isHttpEnabled,
+            isSocks5Enabled = isSocks5Enabled,
+            isHttpActive = false,
+            isSocks5Active = false
         )
     }
     

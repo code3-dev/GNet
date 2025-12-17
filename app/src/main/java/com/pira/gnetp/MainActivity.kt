@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.FormatColorFill
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
@@ -43,6 +44,8 @@ import com.pira.gnetp.ui.home.HomeViewModel
 import com.pira.gnetp.ui.hotspot.HotspotScreen
 import com.pira.gnetp.ui.logs.LogsScreen
 import com.pira.gnetp.ui.settings.SettingsScreen
+import com.pira.gnetp.ui.settings.ThemeSettingsScreen
+import com.pira.gnetp.ui.settings.ProxySettingsScreen
 import com.pira.gnetp.ui.theme.GNetTheme
 import com.pira.gnetp.ui.theme.ThemeManager
 import com.pira.gnetp.ui.theme.ThemeSettings
@@ -104,11 +107,14 @@ fun MainNavHost(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val isAboutScreen = currentDestination?.route == Screen.About.route
+        val isProxySettingsScreen = currentDestination?.route == Screen.ProxySettings.route
+        val isThemeSettingsScreen = currentDestination?.route == Screen.ThemeSettings.route
+        val shouldHideBottomBar = isAboutScreen || isProxySettingsScreen || isThemeSettingsScreen
     
     Scaffold(
         topBar = {},
         bottomBar = {
-            if (!isAboutScreen) {
+            if (!shouldHideBottomBar) {
                 BottomNavigationBar(navController)
             }
         }
@@ -121,8 +127,8 @@ fun MainNavHost(
             composable(Screen.Home.route) {
                 HomeScreen(
                     uiState = homeUiState,
-                    onStartProxy = { homeViewModel.startProxy() },
-                    onStopProxy = { homeViewModel.stopProxy() },
+                    onStartBothProxies = { homeViewModel.startBothProxies() },
+                    onStopBothProxies = { homeViewModel.stopBothProxies() },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToHotspot = { navController.navigate(Screen.Hotspot.route) },
                     onNavigateToLogs = { navController.navigate(Screen.Logs.route) },
@@ -135,6 +141,8 @@ fun MainNavHost(
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToAbout = { navController.navigate(Screen.About.route) },
+                    onNavigateToProxySettings = { navController.navigate(Screen.ProxySettings.route) },
+                    onNavigateToThemeSettings = { navController.navigate(Screen.ThemeSettings.route) },
                     onThemeSettingsChanged = onThemeSettingsChanged
                 )
             }
@@ -156,6 +164,19 @@ fun MainNavHost(
             composable(Screen.About.route) {
                 AboutScreen(
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            
+            composable(Screen.ProxySettings.route) {
+                ProxySettingsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            
+            composable(Screen.ThemeSettings.route) {
+                ThemeSettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onThemeSettingsChanged = onThemeSettingsChanged
                 )
             }
         }
@@ -185,6 +206,8 @@ fun BottomNavigationBar(navController: NavHostController) {
                             Screen.Hotspot -> Icons.Default.Info
                             Screen.Logs -> Icons.AutoMirrored.Filled.List
                             Screen.About -> Icons.Default.Info
+                            Screen.ProxySettings -> Icons.Default.Settings
+                            Screen.ThemeSettings -> Icons.Default.FormatColorFill
                         },
                         contentDescription = null
                     )

@@ -67,7 +67,8 @@ fun HotspotScreen(
             val ipAddressLabel = stringResource(R.string.ip_address)
             val noIpSelectedText = stringResource(R.string.no_ip_selected)
             val ipCopiedClipboardText = stringResource(R.string.ip_copied_clipboard)
-            val portLabel = stringResource(R.string.port)
+            val httpPortLabel = "HTTP " + stringResource(R.string.port)
+            val socks5PortLabel = "SOCKS5 " + stringResource(R.string.port)
             val portCopiedClipboardText = stringResource(R.string.port_copied_clipboard)
             
             Text(
@@ -91,10 +92,21 @@ fun HotspotScreen(
             Spacer(modifier = Modifier.height(12.dp))
             
             ConnectionInfoRow(
-                label = portLabel,
-                value = uiState.port.toString(),
+                label = httpPortLabel,
+                value = uiState.httpPort.toString(),
                 onCopy = { 
-                    copyToClipboard(context, portLabel, uiState.port.toString())
+                    copyToClipboard(context, httpPortLabel, uiState.httpPort.toString())
+                    Toast.makeText(context, portCopiedClipboardText, Toast.LENGTH_SHORT).show()
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            ConnectionInfoRow(
+                label = socks5PortLabel,
+                value = uiState.socks5Port.toString(),
+                onCopy = { 
+                    copyToClipboard(context, socks5PortLabel, uiState.socks5Port.toString())
                     Toast.makeText(context, portCopiedClipboardText, Toast.LENGTH_SHORT).show()
                 }
             )
